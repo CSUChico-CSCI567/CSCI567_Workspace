@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Lecture5</string>
+    <string name="update">Update Text View</string>
+    <string name="checkbox1">TextView 1</string>
+    <string name="action_settings">Settings</string>
+    <string name="checkbox2">TextView2</string>
+</resources>
