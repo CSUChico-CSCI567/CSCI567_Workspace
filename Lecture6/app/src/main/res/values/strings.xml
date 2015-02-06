@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Lecture6</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="start">Start Alarm</string>
+    <string name="stop">Stop Alarm</string>
+</resources>
