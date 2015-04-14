@@ -10,8 +10,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.TextView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -30,6 +30,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Vector;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -73,6 +74,9 @@ public class MainActivity extends ActionBarActivity {
      */
     public static class PlaceholderFragment extends Fragment implements View.OnClickListener{
         View rootView;
+        private ArrayAdapter<String> adapter;
+        private ListView listView1;
+        String [] items = {"No Suggestions"};
 
         public PlaceholderFragment() {
         }
@@ -81,8 +85,10 @@ public class MainActivity extends ActionBarActivity {
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
             rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            Button get = (Button) rootView.findViewById(R.id.getSuggestions);
-            get.setOnClickListener(this);
+            listView1 = (ListView) rootView.findViewById(R.id.listView1);
+            ArrayAdapter<String> adapter = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, items);
+            listView1.setAdapter(adapter);
+            new getData().execute();
             return rootView;
         }
 
@@ -94,26 +100,21 @@ public class MainActivity extends ActionBarActivity {
         @Override
         public void onClick(View v) {
             switch (v.getId()) {
-                case R.id.getSuggestions:
-                    //Do something when button is clicked
-                    new getData().execute();
-                    break;
+
             }
         }
-        private class getData extends AsyncTask<Void, Void, String> {
-
-
+        private class getData extends AsyncTask<Void, Void, Void> {
+            InputStream inputStream = null;
+            String result = "";
             String url_select = "http://www.bryancdixon.com/androidjson";
-
+            Vector<String> results = new Vector<String>();
 
 
             protected void onPreExecute() {
                 Log.d("SuggestionAPP ", "Preparing to get Suggestions");
             }
 
-            protected String doInBackground(Void... params) {
-                String result = "";
-                InputStream inputStream = null;
+            protected Void doInBackground(Void... params) {
                 try {
                     URI uri = new URI(url_select);
                     HttpClient httpclient = new DefaultHttpClient();
@@ -121,7 +122,7 @@ public class MainActivity extends ActionBarActivity {
                     HttpEntity httpEntity = httpResponse.getEntity();
                     inputStream = httpEntity.getContent();
                 } catch (UnsupportedEncodingException e1) {
-                    Log.e("UnsupportedEncExc", e1.toString());
+                    Log.e("UnsupportedEncoding", e1.toString());
                     e1.printStackTrace();
                 } catch (ClientProtocolException e2) {
                     Log.e("ClientProtocolException", e2.toString());
@@ -135,10 +136,7 @@ public class MainActivity extends ActionBarActivity {
                 } catch (URISyntaxException e) {
                     Log.e("URISyntaxException ", e.toString());
                     e.printStackTrace();
-                } catch (Exception e){
-                    Log.e("Unknown Exception ", e.toString());
                 }
-
                 // Convert response to string using String Builder
                 try {
                     BufferedReader bReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"), 8);
@@ -151,27 +149,47 @@ public class MainActivity extends ActionBarActivity {
                     result = sBuilder.toString();
 
                 } catch (Exception e) {
-                    Log.e("Text Error ",  e.toString());
+                    Log.e("String & BufferedReader", "Error converting result " + e.toString());
                 }
-                return result;
+                return null;
             }
 
-            protected void onPostExecute(String result) {
+            protected void onPostExecute(Void donothing) {
+                //parse JSON data
                 String text = "";
                 try {
                     JSONObject jO = new JSONObject(result);
-                    JSONArray ja = jO.getJSONArray("suggestions");
-                    for(int i=0; i<ja.length(); i++){
-                        text += ja.getJSONObject(i).getString("text") + "\n";
-                    }
+                    JSONArray jArray = jO.getJSONArray("suggestions");
 
+
+                    for(int i=0; i < jArray.length(); i++) {
+                        JSONObject jObject = jArray.getJSONObject(i);
+                        results.add(jObject.getString("text"));
+                        text += jObject.getString("text")+"\n\n";
+                        Log.d("SuggestionAPP ",text);
+
+                    } // End Loop
+                    if(jArray.length()<=0){
+                        results.add("No Suggestions");
+                        text="No Suggestions";
+                    }
+                } catch (JSONException e) {
+                    Log.e("JSONException", "Error: " + e.toString());
+                    results.add("No Suggestions");
+                    text="No Suggestions";
                 }
-                catch (JSONException je){
-                    Log.e("JSON Exception ", je.toString());
-                }
+                //Generate String Array from Vector
+                String [] s =  results.toArray(new String[results.size()]);
+
+
+                adapter = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, s);
+
+                listView1.setAdapter(adapter);
+                //Method when using textview
+                //txt.setText(text);
+
                 //set TextView Contents to be JSON response
-                TextView txt = (TextView) rootView.findViewById(R.id.content);
-                txt.setText(text);
+                //txt.setText(result);
             }
         }
     }
