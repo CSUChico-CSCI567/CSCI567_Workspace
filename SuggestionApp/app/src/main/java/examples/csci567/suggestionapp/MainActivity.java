@@ -1,17 +1,24 @@
 package examples.csci567.suggestionapp;
 
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
+import android.view.ActionMode;
+import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.ShareActionProvider;
+import android.widget.Toast;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -34,6 +41,73 @@ import java.util.Vector;
 
 
 public class MainActivity extends ActionBarActivity {
+
+    private static ShareActionProvider mShareActionProvider;
+
+    private static ActionMode mActionMode;
+    private static ActionMode.Callback mActionModeCallback = new ActionMode.Callback() {
+
+        // Called when the action mode is created; startActionMode() was called
+        @Override
+        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            // Inflate a menu resource providing context menu items
+            MenuInflater inflater = mode.getMenuInflater();
+            inflater.inflate(R.menu.context_action, menu);
+            try {
+                /** Getting the actionprovider associated with the menu item whose id is share */
+                mShareActionProvider = (ShareActionProvider) menu.findItem(R.id.menu_item_share).getActionProvider();
+
+                /** Setting a share intent */
+                mShareActionProvider.setShareIntent(getStringShareIntent(""));
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+
+            return true;
+        }
+
+        // Called each time the action mode is shown. Always called after onCreateActionMode, but
+        // may be called multiple times if the mode is invalidated.
+        @Override
+        public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            return false; // Return false if nothing is done
+        }
+
+        // Called when the user selects a contextual menu item
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            if(item.getItemId()== R.id.menu_item_share) {
+                // Fetch and store ShareActionProvider
+                //shareCurrentItem();
+                mode.finish(); // Action picked, so close the CAB
+                return true;
+            }
+            return false;
+        }
+
+        // Called when the user exits the action mode
+        @Override
+        public void onDestroyActionMode(ActionMode mode) {
+            mActionMode = null;
+        }
+    };
+
+    /** Returns a share intent */
+    private static Intent getStringShareIntent(String text){
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain"); //MIME type
+        intent.putExtra(Intent.EXTRA_SUBJECT, "SUBJECT");
+        intent.putExtra(Intent.EXTRA_TEXT,text);
+        return intent;
+    }
+
+    // Call to update the share intent
+    private static void setShareIntent(Intent shareIntent) {
+        if (mShareActionProvider != null) {
+            mShareActionProvider.setShareIntent(shareIntent);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,8 +162,58 @@ public class MainActivity extends ActionBarActivity {
             listView1 = (ListView) rootView.findViewById(R.id.listView1);
             ArrayAdapter<String> adapter = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, items);
             listView1.setAdapter(adapter);
+            listView1.setClickable(true);
+            listView1.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> arg0, View view, final int position, long arg3) {
+                    Toast.makeText(getActivity(),listView1.getItemAtPosition(position).toString(),Toast.LENGTH_LONG).show();
+                }
+            });
+
+            listView1.setLongClickable(true);
+            listView1.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+                @Override
+                public boolean onItemLongClick(AdapterView<?> arg0, View view, final int position, long arg3) {
+                    if (mActionMode != null) {
+                        return false;
+                    }
+
+                    // Start the CAB using the ActionMode.Callback defined above
+                    mActionMode = getActivity().startActionMode(mActionModeCallback);
+                    setShareIntent(getStringShareIntent(listView1.getItemAtPosition(position).toString()));
+                    //Toast.makeText(getBaseContext(), listView2.getItemAtPosition(position).toString(), Toast.LENGTH_LONG).show();
+                    //listView1.setItemChecked(position, true);
+                    return true;
+
+                }
+            });
+
+
             new getData().execute();
             return rootView;
+        }
+
+        @Override
+        public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+            super.onCreateContextMenu(menu, v, menuInfo);
+            MenuInflater inflater = getActivity().getMenuInflater();
+            inflater.inflate(R.menu.context_menu, menu);
+        }
+
+
+        @Override
+        public boolean onContextItemSelected(MenuItem item) {
+            AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+            int position = info.position;
+            if(item.getItemId()==R.id.edit){
+                Toast.makeText(getActivity(), "Edit: " + adapter.getItem(position), Toast.LENGTH_LONG).show();
+                return true;
+            }
+            if(item.getItemId()==R.id.delete){
+                Toast.makeText(getActivity(), "Delete: "+ adapter.getItem(position), Toast.LENGTH_LONG).show();
+                return true;
+            }
+            return super.onContextItemSelected(item);
         }
 
         /**
@@ -166,7 +290,7 @@ public class MainActivity extends ActionBarActivity {
                         JSONObject jObject = jArray.getJSONObject(i);
                         results.add(jObject.getString("text"));
                         text += jObject.getString("text")+"\n\n";
-                        Log.d("SuggestionAPP ",text);
+                        //Log.d("SuggestionAPP ",text);
 
                     } // End Loop
                     if(jArray.length()<=0){
